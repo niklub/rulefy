@@ -23,7 +23,7 @@ export async function generateWithLLM(
     console.log('Using mock response for testing');
     return generateMockResponse(repoContent);
   }
-  
+
   return await generateWithClaude(
     repoContent,
     guidelines,
@@ -42,11 +42,11 @@ function progressBar(current: number, total: number, length = 30): string {
   const percentage = current / total;
   const filledLength = Math.round(length * percentage);
   const emptyLength = length - filledLength;
-  
+
   const filled = '█'.repeat(filledLength);
   const empty = '░'.repeat(emptyLength);
   const percentageText = Math.round(percentage * 100).toString().padStart(3);
-  
+
   return `${filled}${empty} ${percentageText}%`;
 }
 
@@ -62,7 +62,7 @@ function formatTokenCount(count: number): string {
  */
 function calculateChunkCount(totalTokens: number, chunkSize: number): number {
   if (totalTokens <= chunkSize) return 1;
-  
+
   return Math.ceil(totalTokens / chunkSize);
 }
 
@@ -78,27 +78,27 @@ async function* chunkIterator(text: string, chunkSize: number): AsyncGenerator<{
   console.log(pc.cyan('\n┌─────────────────────────────────────────┐'));
   console.log(pc.cyan('│           CONTENT CHUNKING               │'));
   console.log(pc.cyan('└─────────────────────────────────────────┘\n'));
-  
+
   // Get tokenizer for the model
   const encoding = getEncoding('cl100k_base');
-  
+
   const tokens = encoding.encode(text);
   const totalTokens = tokens.length;
-  
+
   console.log(`● Document size: ${formatTokenCount(totalTokens)} tokens`);
-  
+
   console.log(`● Chunk size: ${formatTokenCount(chunkSize)} tokens`);
   // Calculate and display the estimated cost
   const estimatedCost = (totalTokens * costPerToken).toFixed(4);
   console.log(pc.yellow(`● Estimated input processing cost: $${estimatedCost} (${formatTokenCount(totalTokens)} tokens × $${costPerToken} per token)`));
-  
+
   // Create a user dialog to confirm proceeding
   const rl = readline.createInterface({ input, output });
-  
+
   try {
     const answer = await rl.question(pc.yellow('\nProceed with processing? (y/n): '));
     const proceed = answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
-    
+
     if (!proceed) {
       console.log(pc.red('\nOperation cancelled by user.'));
       process.exit(0);
@@ -110,17 +110,17 @@ async function* chunkIterator(text: string, chunkSize: number): AsyncGenerator<{
   // Calculate the total number of chunks for progress reporting
   const totalChunks = calculateChunkCount(totalTokens, chunkSize);
   console.log(pc.green(`✓ Will process ${totalChunks} chunks\n`));
-  
+
   // Yield chunks one at a time
   let i = 0;
   let chunkIndex = 0;
-  
+
   while (i < tokens.length) {
     // Get the current chunk of tokens
     const nextIndex = Math.min(i + chunkSize, tokens.length);
     const chunkTokens = tokens.slice(i, nextIndex);
     const chunk = encoding.decode(chunkTokens);
-    
+
     // Yield the current chunk along with its metadata
     yield {
       chunk,
@@ -128,12 +128,12 @@ async function* chunkIterator(text: string, chunkSize: number): AsyncGenerator<{
       tokenCount: chunkTokens.length,
       totalChunks
     };
-    
+
     // Move forward to the next chunk (no overlap)
     i = nextIndex;
     chunkIndex++;
   }
-  
+
   process.stdout.write('\n\n');
 }
 
@@ -143,14 +143,14 @@ async function generateWithClaude(repoContent: string, guidelines: string, outpu
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY environment variable is not set. Please set it to use Claude.');
   }
-  
+
   const client = new Anthropic({
     apiKey,
   });
 
   // Process text chunk by chunk using the iterator
   let currentSummary = ''; // This will store our progressively built summary
-  
+
   // Helper function to extract content between <cursorrules> tags
   function extractCursorrules(text: string): string {
     const regex = /<cursorrules>([\s\S]*?)<\/cursorrules>/;
@@ -160,25 +160,25 @@ async function generateWithClaude(repoContent: string, guidelines: string, outpu
     }
     return match[1].trim();
   }
-  
+
   // Create a chunk iterator to process one chunk at a time
   const chunkGen = chunkIterator(repoContent, chunkSize);
-  
+
   for await (const { chunk, index, tokenCount, totalChunks } of chunkGen) {
     const chunkDisplay = `[${index+1}/${totalChunks}]`;
     console.log(`${pc.yellow('⟳')} Processing chunk ${pc.yellow(chunkDisplay)} ${progressBar(index+1, totalChunks)}`);
-    
-    // Display chunk information 
+
+    // Display chunk information
     console.log(pc.cyan(`┌${'─'.repeat(58)}┐`));
     console.log(pc.cyan(`│ Chunk: ${String(index+1).padEnd(10)} Token Count: ${formatTokenCount(tokenCount).padEnd(12)} │`));
     console.log(pc.cyan(`└${'─'.repeat(58)}┘\n`));
-    
+
     const isFirstChunk = index === 0;
-    
+
     const systemPrompt = 'You are an expert AI system designed to analyze code repositories and generate Cursor AI rules. Your task is to create a .cursorrules file based on the provided repository content and guidelines.';
-    
+
     let userPrompt;
-    
+
     if (isFirstChunk) {
       // For the first chunk, start creating the rules
       userPrompt = `I need your help to create a Cursor rule (.cursorrules) file for my project. Please follow this process:
@@ -274,7 +274,7 @@ Be concise - the final cursorrules file text must be not more than one page long
     }
 
     process.stdout.write(`${pc.blue('🔄')} Sending to Claude ${provider}... `);
-    
+
     try {
       const startTime = Date.now();
       const response = await client.messages.create({
@@ -291,9 +291,9 @@ Be concise - the final cursorrules file text must be not more than one page long
       currentSummary = response.content[0].text;
       const endTime = Date.now();
       const processingTime = ((endTime - startTime) / 1000).toFixed(2);
-      
+
       process.stdout.write(pc.green('✓\n'));
-      
+
       // Save intermediate output to file in the specified directory
       const intermediateFileName = path.join(outputDir, `cursorrules_chunk_${index+1}_of_${totalChunks}.md`);
       await fs.writeFile(intermediateFileName, currentSummary);
@@ -306,11 +306,11 @@ Be concise - the final cursorrules file text must be not more than one page long
       throw new Error(`${pc.red('Unknown error occurred while generating with Claude on chunk')} ${index+1}`);
     }
   }
-  
+
   console.log(pc.green('\n┌─────────────────────────────────────────┐'));
   console.log(pc.green('│          PROCESSING COMPLETE            │'));
   console.log(pc.green('└─────────────────────────────────────────┘\n'));
-  
+
   // Only extract the cursorrules content at the very end
   return extractCursorrules(currentSummary);
 }
@@ -319,7 +319,7 @@ function generateMockResponse(repoContent: string): string {
   // Extract some information from the repo content for the mock response
   const repoLines = repoContent.split('\n');
   const repoName = repoLines.find(line => line.includes('# Project:'))?.replace('# Project:', '').trim() || 'Repository';
-  
+
   return `# .cursorrules for ${repoName}
 
 ## Project Overview

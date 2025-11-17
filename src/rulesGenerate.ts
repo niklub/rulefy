@@ -20,14 +20,14 @@ export async function rulesGenerate(
   try {
     // 1. Extract repo name from URL or path
     const repoName = extractRepoName(repoPath);
-    
+
     // 2. Set output directory based on repo name
     const outputDir = `${repoName}-output`;
     const outputFile = path.join(outputDir, `${repoName}.rules.mdc`);
-    
+
     // Ensure output directory exists
     await fs.mkdir(outputDir, { recursive: true });
-    
+
     console.log(pc.cyan('1. Converting repository to text using repomix...'));
     // 3. Run repomix to get repo representation
     let repoText: string;
@@ -37,7 +37,7 @@ export async function rulesGenerate(
       console.log(pc.yellow(`Warning: Could not get actual repo content. Error: ${error}. Using mock content for testing.`));
       repoText = generateMockRepoContent(repoName);
     }
-    
+
     console.log(pc.cyan('2. Reading cursor rules guidelines...'));
     // 4. Read guidelines file
     let guidelinesText: string;
@@ -46,7 +46,7 @@ export async function rulesGenerate(
       const modulePath = new URL(import.meta.url).pathname;
       const moduleDir = path.dirname(modulePath);
       const moduleDirPath = path.resolve(moduleDir, '../src/prompts/cursor_mdc.md');
-      
+
       guidelinesText = await fs.readFile(moduleDirPath, 'utf-8');
       console.log(pc.green('✓ Successfully read guidelines from module path'));
     } catch (_error) {
@@ -60,7 +60,7 @@ export async function rulesGenerate(
         guidelinesText = generateMockGuidelines();
       }
     }
-    
+
     console.log(pc.cyan('3. Generating cursor rules...'));
     // 5. Generate rules using LLM
     const generatedRules = await generateWithLLM(
@@ -72,11 +72,11 @@ export async function rulesGenerate(
       options.description,
       options.ruleType,
     );
-    
+
     console.log(pc.cyan(`4. Writing rules to ${outputFile}...`));
     // 6. Write output to file
     await fs.writeFile(outputFile, generatedRules);
-    
+
     console.log(pc.green(`\n✅ Successfully generated cursor rules for ${repoName}!`));
     console.log(`Output saved to: ${pc.bold(outputFile)}`);
     console.log(`All generated files are in: ${pc.bold(outputDir)}`);
@@ -93,7 +93,7 @@ function extractRepoName(repoPath: string): string {
   if (repoPath === '.') {
     return path.basename(process.cwd());
   }
-  
+
   // For local paths, use the directory name
   try {
     // Sync version to avoid Promise handling in this synchronous function
@@ -104,28 +104,28 @@ function extractRepoName(repoPath: string): string {
     // Path doesn't exist or can't be accessed, check if it's a remote repo
     console.log(pc.yellow(`Warning: Could not find a local repo by path: ${repoPath}. Error: ${_e}`));
   }
-  
+
   // Handle format like 'owner/repo'
   if (/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/.test(repoPath)) {
     return repoPath.split('/')[1];
   }
-  
+
   // Handle GitHub URLs (only http or https)
   const githubUrlMatch = repoPath.match(/^https?:\/\/github\.com\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)/);
   if (githubUrlMatch) {
     return githubUrlMatch[2];
   }
-  
+
   // If no match, use a sanitized version of the path as fallback
   return repoPath.replace(/[^a-zA-Z0-9_-]/g, '-').replace(/^-+|-+$/g, '');
 }
 
 async function runRepomix(repoPath: string, outputDir: string, additionalOptions?: Record<string, string>): Promise<string> {
   try {
-    
+
     // Build repomix command based on whether it's a remote or local repository
     let command = `npx repomix ${repoPath}`;
-    
+
     // Add any additional options to the command
     if (additionalOptions) {
       for (const [key, value] of Object.entries(additionalOptions)) {
@@ -136,23 +136,23 @@ async function runRepomix(repoPath: string, outputDir: string, additionalOptions
         }
       }
     }
-    
+
     // Add output directory to command
     const outputFilePath = path.join(outputDir, 'repomix-output');
     command += ` --output "${outputFilePath}"`;
-    
+
     // Display the command being executed
     console.log(pc.cyan(`Executing: ${command}`));
-    
+
     // Run repomix command
-    execSync(command, { 
+    execSync(command, {
       encoding: 'utf-8',
       stdio: 'inherit' // Show all output directly in the console
     });
-    
+
     // Read the content of the generated file
     console.log(pc.green(`Reading repomix output from: ${outputFilePath}`));
-    
+
     const content = await fs.readFile(outputFilePath, 'utf-8');
     return content;
   } catch (error) {
