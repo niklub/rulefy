@@ -11,10 +11,20 @@ export const run = async (): Promise<void> => {
       .description('Rulefy - Transform GitHub repositories into cursor rules instructions')
       .argument('[repo-path]', 'Path to the repository', '.')
       .allowExcessArguments(true)
-      .option('--provider <provider>', 'LLM model to use (default: "claude-sonnet-3.7-latest")')
+      .option('--provider <provider>', 'LLM model to use', 'claude-3-7-sonnet-latest')
       .option('--description <text>', 'Description of what should be rulefied')
       .option('--rule-type <type>', 'Type of rule to generate (auto, manual, agent, always)')
-      .option('--chunk-size <size>', 'Chunk size for the repository to be processed in one go (default: 100000)', '100000')
+      .option(
+        '--chunk-size <size>',
+        'Chunk size for the repository to be processed in one go',
+        (value: string) => {
+          const num = Number.parseInt(value);
+          if (Number.isNaN(num) || num <= 0)
+            throw new Error(`Invalid chunk size "${value}". Please provide a positive integer.`);
+          return num;
+        },
+        100000
+      )
       .allowUnknownOption(true);
 
     program.parse(process.argv);
@@ -36,7 +46,7 @@ export const run = async (): Promise<void> => {
     const additionalOptions: Record<string, string> = {};
     
     // Known options already handled by Commander
-    const knownOptions = ['provider', 'description', 'rule-type'];
+    const knownOptions = ['provider', 'description', 'rule-type', 'chunk-size'];
     const knownOptionFlags = knownOptions.map(opt => `--${opt}`);
     
     // Parse additional options from args array

@@ -6,18 +6,16 @@ import pc from 'picocolors';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
-// Environment variables for chunk configuration, with defaults
-const CHUNK_SIZE = Number(process.env.CHUNK_SIZE || '100000');
 const costPerToken = 3e-6; // 3$ per million tokens
 
 export async function generateWithLLM(
   repoContent: string,
   guidelines: string,
-  outputDir: string = '.',
+  outputDir: string,
+  provider: string,
+  chunkSize: number,
   description?: string,
   ruleType?: string,
-  provider: string = 'claude-3-7-sonnet-latest',
-  chunkSize: number = CHUNK_SIZE,
 ): Promise<string> {
   // If this is a test run with dummy API key, just return a mock response
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -26,7 +24,15 @@ export async function generateWithLLM(
     return generateMockResponse(repoContent);
   }
   
-  return await generateWithClaude(repoContent, guidelines, outputDir, description, ruleType, provider, chunkSize);
+  return await generateWithClaude(
+    repoContent,
+    guidelines,
+    outputDir,
+    provider,
+    chunkSize,
+    description,
+    ruleType,
+  );
 }
 
 /**
@@ -63,7 +69,7 @@ function calculateChunkCount(totalTokens: number, chunkSize: number): number {
 /**
  * Iterator that yields one chunk at a time to save memory
  */
-async function* chunkIterator(text: string, chunkSize?: number): AsyncGenerator<{
+async function* chunkIterator(text: string, chunkSize: number): AsyncGenerator<{
   chunk: string;
   index: number;
   tokenCount: number;
@@ -78,11 +84,10 @@ async function* chunkIterator(text: string, chunkSize?: number): AsyncGenerator<
   
   const tokens = encoding.encode(text);
   const totalTokens = tokens.length;
-  const cSize = chunkSize || CHUNK_SIZE;
   
   console.log(`● Document size: ${formatTokenCount(totalTokens)} tokens`);
-  console.log(`● Chunk size: ${formatTokenCount(cSize)} tokens`);
   
+  console.log(`● Chunk size: ${formatTokenCount(chunkSize)} tokens`);
   // Calculate and display the estimated cost
   const estimatedCost = (totalTokens * costPerToken).toFixed(4);
   console.log(pc.yellow(`● Estimated input processing cost: $${estimatedCost} (${formatTokenCount(totalTokens)} tokens × $${costPerToken} per token)`));
@@ -101,9 +106,9 @@ async function* chunkIterator(text: string, chunkSize?: number): AsyncGenerator<
   } finally {
     rl.close();
   }
-  
+
   // Calculate the total number of chunks for progress reporting
-  const totalChunks = calculateChunkCount(totalTokens, chunkSize || CHUNK_SIZE);
+  const totalChunks = calculateChunkCount(totalTokens, chunkSize);
   console.log(pc.green(`✓ Will process ${totalChunks} chunks\n`));
   
   // Yield chunks one at a time
@@ -112,7 +117,8 @@ async function* chunkIterator(text: string, chunkSize?: number): AsyncGenerator<
   
   while (i < tokens.length) {
     // Get the current chunk of tokens
-    const chunkTokens = tokens.slice(i, Math.min(i + cSize, tokens.length));
+    const nextIndex = Math.min(i + chunkSize, tokens.length);
+    const chunkTokens = tokens.slice(i, nextIndex);
     const chunk = encoding.decode(chunkTokens);
     
     // Yield the current chunk along with its metadata
@@ -124,14 +130,14 @@ async function* chunkIterator(text: string, chunkSize?: number): AsyncGenerator<
     };
     
     // Move forward to the next chunk (no overlap)
-    i += cSize;
+    i = nextIndex;
     chunkIndex++;
   }
   
   process.stdout.write('\n\n');
 }
 
-async function generateWithClaude(repoContent: string, guidelines: string, outputDir: string = '.', description?: string, ruleType?: string, provider: string = 'claude-3-7-sonnet-latest', chunkSize?: number): Promise<string> {
+async function generateWithClaude(repoContent: string, guidelines: string, outputDir: string, provider: string, chunkSize: number, description?: string, ruleType?: string): Promise<string> {
   // Check for API key in environment
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {

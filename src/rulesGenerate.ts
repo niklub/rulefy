@@ -8,8 +8,8 @@ import { generateWithLLM } from './llmGenerator.js';
 interface RulesGenerateOptions {
   description?: string;
   ruleType?: string;
-  provider?: string;
-  chunkSize?: number;
+  provider: string;
+  chunkSize: number;
   additionalOptions?: Record<string, string>;
 }
 
@@ -64,13 +64,13 @@ export async function rulesGenerate(
     console.log(pc.cyan('3. Generating cursor rules...'));
     // 5. Generate rules using LLM
     const generatedRules = await generateWithLLM(
-      repoText, 
-      guidelinesText, 
-      outputDir, 
+      repoText,
+      guidelinesText,
+      outputDir,
+      options.provider,
+      options.chunkSize,
       options.description,
       options.ruleType,
-      options.provider,
-      options.chunkSize
     );
     
     console.log(pc.cyan(`4. Writing rules to ${outputFile}...`));
