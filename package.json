@@ -16,6 +16,7 @@
   "scripts": {
     "build": "rimraf lib && tsc -p tsconfig.json --sourceMap --declaration",
     "lint": "eslint src --ext .ts",
+    "format": "eslint --fix src --ext .ts",
     "test": "echo 'No tests yet' && exit 0",
     "prepublishOnly": "npm run lint && npm run build"
   },
@@ -49,7 +50,7 @@
   "devDependencies": {
     "@types/node": "^20.11.5",
     "@typescript-eslint/eslint-plugin": "^8.27.0",
-    "@typescript-eslint/parser": "^7.14.0",
+    "@typescript-eslint/parser": "^8.27.0",
     "eslint": "^8.56.0",
     "rimraf": "^5.0.5",
     "typescript": "^5.3.3",
