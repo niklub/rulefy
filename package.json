@@ -41,7 +41,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.20.0",
+    "@anthropic-ai/sdk": "^0.69.0",
     "commander": "^13.1.0",
     "js-tiktoken": "^1.0.19",
     "picocolors": "^1.1.0",
@@ -52,7 +52,7 @@
     "@typescript-eslint/eslint-plugin": "^8.27.0",
     "@typescript-eslint/parser": "^8.27.0",
     "eslint": "^8.56.0",
-    "rimraf": "^5.0.5",
+    "rimraf": "^6.1.0",
     "typescript": "^5.3.3",
     "vitest": "^3.1.1"
   },
