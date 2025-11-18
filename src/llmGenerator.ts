@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { Message } from '@anthropic-ai/sdk/resources';
 import { getEncoding, TiktokenEncoding } from 'js-tiktoken';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -78,7 +79,7 @@ async function* chunkIterator(text: string, chunkSize: number, tokenizer: string
   totalChunks: number;
 }, void, unknown> {
   console.log(pc.cyan('\n┌─────────────────────────────────────────┐'));
-  console.log(pc.cyan('│           CONTENT CHUNKING               │'));
+  console.log(pc.cyan('│           CONTENT CHUNKING              │'));
   console.log(pc.cyan('└─────────────────────────────────────────┘\n'));
 
   // Get tokenizer for the model
@@ -172,7 +173,7 @@ async function generateWithClaude(repoContent: string, guidelines: string, outpu
 
     // Display chunk information
     console.log(pc.cyan(`┌${'─'.repeat(58)}┐`));
-    console.log(pc.cyan(`│ Chunk: ${String(index+1).padEnd(10)} Token Count: ${formatTokenCount(tokenCount).padEnd(12)} │`));
+    console.log(pc.cyan(`│ Chunk: ${String(index+1).padEnd(10)} Token Count: ${formatTokenCount(tokenCount).padEnd(35)} │`));
     console.log(pc.cyan(`└${'─'.repeat(58)}┘\n`));
 
     const isFirstChunk = index === 0;
@@ -276,25 +277,13 @@ Be concise - the final cursorrules file text must be not more than one page long
     }
 
     process.stdout.write(`${pc.blue('🔄')} Sending to Claude ${provider}... `);
-
     try {
       const startTime = Date.now();
-      const response = await client.messages.create({
-        model: provider,
-        max_tokens: 8000,
-        system: systemPrompt,
-        messages: [
-          {
-            role: 'user',
-            content: userPrompt
-          }
-        ]
-      });
-      currentSummary = response.content[0].text;
+      const response = await callClaudeWithRetry(client, provider, systemPrompt, userPrompt);
+      currentSummary = response.content[0].type === 'text' ? response.content[0].text : '';
       const endTime = Date.now();
       const processingTime = ((endTime - startTime) / 1000).toFixed(2);
-
-      process.stdout.write(pc.green('✓\n'));
+      process.stdout.write(pc.green(`✓ ${response.usage.input_tokens} input tokens\n`));
 
       // Save intermediate output to file in the specified directory
       const intermediateFileName = path.join(outputDir, `cursorrules_chunk_${index+1}_of_${totalChunks}.md`);
@@ -315,6 +304,30 @@ Be concise - the final cursorrules file text must be not more than one page long
 
   // Only extract the cursorrules content at the very end
   return extractCursorrules(currentSummary);
+}
+
+async function callClaudeWithRetry(client: Anthropic, provider: string, systemPrompt: string, userPrompt: string, retriesRemaining: number = 3): Promise<Message> {
+  const response = await client.messages.create({
+    model: provider,
+    max_tokens: 8000,
+    system: systemPrompt,
+    messages: [
+      {
+        role: 'user',
+        content: userPrompt
+      }
+    ]
+  })
+    .catch(async (error: typeof Anthropic.APIError) => {
+      if (error instanceof Anthropic.RateLimitError && retriesRemaining > 0) {
+        const waitTime = Number.parseInt(error.headers.get('retry-after') || '60');
+        console.log(pc.yellow(`Rate limit exceeded. Waiting for ${waitTime} seconds and retrying...`));
+        await new Promise(resolve => setTimeout(resolve, waitTime * 1000 ));
+        return await callClaudeWithRetry(client, provider, systemPrompt, userPrompt, retriesRemaining - 1);
+      }
+      throw new Error(`${pc.red('Error generating with Claude')}`, {cause: error});
+    });
+  return response;
 }
 
 function generateMockResponse(repoContent: string): string {

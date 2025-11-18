@@ -78,11 +78,11 @@ This will:
 
 ```
 Options:
-  --provider <provider>    LLM model to use (default: "claude-sonnet-3.7-latest") (currently only claude models are supported)
-  -o, --output <file>      Output file name (defaults to <repo-name>.rules.mdc)
-  --guidelines <file>      Path to cursor rules guidelines file (default: "./cursorrules-guidelines.md")
+  --provider <provider>    LLM model to use (default: "claude-sonnet-4-5-20250929")
   --description <text>     Description of what should be rulefied
   --rule-type <type>       Type of rule to generate (auto, manual, agent, always)
+  --tokenizer <tokenizer>  Tokenizer used to count tokens (default: "p50k_base")
+  --chunk-size <size>      Chunk size for the repository to be processed in one go (default: 100000)
   -h, --help               display help for command
 ```
 
@@ -149,4 +149,3 @@ This project is inspired by and builds upon the work of:
 - [cursor-custom-agents-rules-generator](https://github.com/bmadcode/cursor-custom-agents-rules-generator) - best practices for Cursor custom agents and rules generator
 
 We're grateful to these projects for their contributions to the developer tooling ecosystem.
-
