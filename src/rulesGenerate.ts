@@ -10,6 +10,7 @@ interface RulesGenerateOptions {
   ruleType?: string;
   provider: string;
   chunkSize: number;
+  tokenizer: string;
   additionalOptions?: Record<string, string>;
 }
 
@@ -32,7 +33,7 @@ export async function rulesGenerate(
     // 3. Run repomix to get repo representation
     let repoText: string;
     try {
-      repoText = await runRepomix(repoPath, outputDir, options.additionalOptions);
+      repoText = await runRepomix(repoPath, outputDir, options.tokenizer, options.additionalOptions);
     } catch (error) {
       console.log(pc.yellow(`Warning: Could not get actual repo content. Error: ${error}. Using mock content for testing.`));
       repoText = generateMockRepoContent(repoName);
@@ -69,6 +70,7 @@ export async function rulesGenerate(
       outputDir,
       options.provider,
       options.chunkSize,
+      options.tokenizer,
       options.description,
       options.ruleType,
     );
@@ -120,11 +122,11 @@ function extractRepoName(repoPath: string): string {
   return repoPath.replace(/[^a-zA-Z0-9_-]/g, '-').replace(/^-+|-+$/g, '');
 }
 
-async function runRepomix(repoPath: string, outputDir: string, additionalOptions?: Record<string, string>): Promise<string> {
+async function runRepomix(repoPath: string, outputDir: string, tokenizer: string, additionalOptions?: Record<string, string>): Promise<string> {
   try {
 
     // Build repomix command based on whether it's a remote or local repository
-    let command = `npx repomix ${repoPath}`;
+    let command = `npx repomix ${repoPath} --token-count-encoding ${tokenizer}`;
 
     // Add any additional options to the command
     if (additionalOptions) {

@@ -14,6 +14,7 @@ export const run = async (): Promise<void> => {
       .option('--provider <provider>', 'LLM model to use', 'claude-3-7-sonnet-latest')
       .option('--description <text>', 'Description of what should be rulefied')
       .option('--rule-type <type>', 'Type of rule to generate (auto, manual, agent, always)')
+      .option('--tokenizer <tokenizer>', 'Tokenizer used to count tokens', 'p50k_base')
       .option(
         '--chunk-size <size>',
         'Chunk size for the repository to be processed in one go',
@@ -46,7 +47,7 @@ export const run = async (): Promise<void> => {
     const additionalOptions: Record<string, string> = {};
 
     // Known options already handled by Commander
-    const knownOptions = ['provider', 'description', 'rule-type', 'chunk-size'];
+    const knownOptions = ['provider', 'description', 'rule-type', 'chunk-size', 'tokenizer'];
     const knownOptionFlags = knownOptions.map(opt => `--${opt}`);
 
     // Parse additional options from args array
@@ -76,6 +77,7 @@ export const run = async (): Promise<void> => {
       ruleType: options.ruleType,
       provider: options.provider,
       chunkSize: options.chunkSize,
+      tokenizer: options.tokenizer,
       additionalOptions
     });
 

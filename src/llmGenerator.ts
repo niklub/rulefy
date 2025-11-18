@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { getEncoding } from 'js-tiktoken';
+import { getEncoding, TiktokenEncoding } from 'js-tiktoken';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import pc from 'picocolors';
@@ -14,6 +14,7 @@ export async function generateWithLLM(
   outputDir: string,
   provider: string,
   chunkSize: number,
+  tokenizer: string,
   description?: string,
   ruleType?: string,
 ): Promise<string> {
@@ -30,6 +31,7 @@ export async function generateWithLLM(
     outputDir,
     provider,
     chunkSize,
+    tokenizer,
     description,
     ruleType,
   );
@@ -69,7 +71,7 @@ function calculateChunkCount(totalTokens: number, chunkSize: number): number {
 /**
  * Iterator that yields one chunk at a time to save memory
  */
-async function* chunkIterator(text: string, chunkSize: number): AsyncGenerator<{
+async function* chunkIterator(text: string, chunkSize: number, tokenizer: string): AsyncGenerator<{
   chunk: string;
   index: number;
   tokenCount: number;
@@ -80,7 +82,7 @@ async function* chunkIterator(text: string, chunkSize: number): AsyncGenerator<{
   console.log(pc.cyan('└─────────────────────────────────────────┘\n'));
 
   // Get tokenizer for the model
-  const encoding = getEncoding('cl100k_base');
+  const encoding = getEncoding(tokenizer as TiktokenEncoding);
 
   const tokens = encoding.encode(text);
   const totalTokens = tokens.length;
@@ -137,7 +139,7 @@ async function* chunkIterator(text: string, chunkSize: number): AsyncGenerator<{
   process.stdout.write('\n\n');
 }
 
-async function generateWithClaude(repoContent: string, guidelines: string, outputDir: string, provider: string, chunkSize: number, description?: string, ruleType?: string): Promise<string> {
+async function generateWithClaude(repoContent: string, guidelines: string, outputDir: string, provider: string, chunkSize: number, tokenizer: string, description?: string, ruleType?: string): Promise<string> {
   // Check for API key in environment
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -162,7 +164,7 @@ async function generateWithClaude(repoContent: string, guidelines: string, outpu
   }
 
   // Create a chunk iterator to process one chunk at a time
-  const chunkGen = chunkIterator(repoContent, chunkSize);
+  const chunkGen = chunkIterator(repoContent, chunkSize, tokenizer);
 
   for await (const { chunk, index, tokenCount, totalChunks } of chunkGen) {
     const chunkDisplay = `[${index+1}/${totalChunks}]`;
