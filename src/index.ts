@@ -11,7 +11,7 @@ export const run = async (): Promise<void> => {
       .description('Rulefy - Transform GitHub repositories into cursor rules instructions')
       .argument('[repo-path]', 'Path to the repository', '.')
       .allowExcessArguments(true)
-      .option('--provider <provider>', 'LLM model to use', 'claude-3-7-sonnet-latest')
+      .option('--provider <provider>', 'LLM model to use', 'claude-sonnet-4-5-20250929')
       .option('--description <text>', 'Description of what should be rulefied')
       .option('--rule-type <type>', 'Type of rule to generate (auto, manual, agent, always)')
       .option('--tokenizer <tokenizer>', 'Tokenizer used to count tokens', 'p50k_base')
