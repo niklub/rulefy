@@ -6,15 +6,26 @@ import { rulesGenerate } from './rulesGenerate.js';
 export const run = async (): Promise<void> => {
   try {
     const program = new Command();
-    
+
     program
       .description('Rulefy - Transform GitHub repositories into cursor rules instructions')
       .argument('[repo-path]', 'Path to the repository', '.')
       .allowExcessArguments(true)
-      .option('--provider <provider>', 'LLM model to use (default: "claude-sonnet-3.7-latest")')
+      .option('--provider <provider>', 'LLM model to use', 'claude-sonnet-4-5-20250929')
       .option('--description <text>', 'Description of what should be rulefied')
       .option('--rule-type <type>', 'Type of rule to generate (auto, manual, agent, always)')
-      .option('--chunk-size <size>', 'Chunk size for the repository to be processed in one go (default: 100000)', '100000')
+      .option('--tokenizer <tokenizer>', 'Tokenizer used to count tokens', 'p50k_base')
+      .option(
+        '--chunk-size <size>',
+        'Chunk size for the repository to be processed in one go',
+        (value: string) => {
+          const num = Number.parseInt(value);
+          if (Number.isNaN(num) || num <= 0)
+            throw new Error(`Invalid chunk size "${value}". Please provide a positive integer.`);
+          return num;
+        },
+        100000
+      )
       .allowUnknownOption(true);
 
     program.parse(process.argv);
@@ -25,31 +36,31 @@ export const run = async (): Promise<void> => {
     // Find the repository path (first argument that doesn't start with --)
     const repoPathIndex = args.findIndex(arg => !arg.startsWith('--'));
     const repoPath = repoPathIndex >= 0 ? args[repoPathIndex] : '.';
-    
+
     console.log(pc.bold(`\n🧩 Rulefy - Generating cursor rules for ${repoPath}\n`));
-    
+
     if (options.description) {
       console.log(pc.cyan(`Rulefying with description: "${options.description}"\n`));
     }
-    
+
     // Create a dictionary for additional options
     const additionalOptions: Record<string, string> = {};
-    
+
     // Known options already handled by Commander
-    const knownOptions = ['provider', 'description', 'rule-type'];
+    const knownOptions = ['provider', 'description', 'rule-type', 'chunk-size', 'tokenizer'];
     const knownOptionFlags = knownOptions.map(opt => `--${opt}`);
-    
+
     // Parse additional options from args array
     for (let i = 0; i < args.length; i++) {
       const arg = args[i];
-      
+
       // Skip the repository path
       if (i === repoPathIndex) continue;
-      
+
       // Check if it's an option (starts with --)
       if (arg.startsWith('--') && !knownOptionFlags.includes(arg)) {
         const optionName = arg.slice(2); // Remove '--'
-        
+
         // Check if next argument exists and doesn't start with -- and isn't the repo path
         if (i + 1 < args.length && !args[i + 1].startsWith('--') && i + 1 !== repoPathIndex) {
           additionalOptions[optionName] = args[i + 1];
@@ -60,12 +71,13 @@ export const run = async (): Promise<void> => {
         }
       }
     }
-    
+
     await rulesGenerate(repoPath, {
       description: options.description,
       ruleType: options.ruleType,
       provider: options.provider,
       chunkSize: options.chunkSize,
+      tokenizer: options.tokenizer,
       additionalOptions
     });
 
